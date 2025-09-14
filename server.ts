@@ -1,10 +1,10 @@
 import express, { Express, NextFunction, Request, Response } from "express";
+import Superhero from "./Superhero";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import cors from "cors";
 import multer from "multer";
+import cors from "cors";
 import path from "path";
-import Superhero from "./Superhero";
 
 dotenv.config();
 
