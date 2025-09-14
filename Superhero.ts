@@ -6,12 +6,12 @@ interface ISuperhero extends Document {
   origin_description: string;
   superpowers: string[];
   catch_phrase: string;
-  images: string[];
+  images?: string[];
 }
 
-const superheroSchema: Schema<ISuperhero> = new Schema<ISuperhero>(
+const superheroSchema: Schema = new Schema<ISuperhero>(
   {
-    nickname: { type: String, required: true },
+    nickname: { type: String, required: true, unique: true },
     real_name: { type: String, required: true },
     origin_description: { type: String, required: true },
     superpowers: { type: [String], required: true },
