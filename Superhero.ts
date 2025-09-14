@@ -9,7 +9,7 @@ interface ISuperhero extends Document {
   images: string[];
 }
 
-const superheroSchema: Schema = new Schema<ISuperhero>(
+const superheroSchema: Schema<ISuperhero> = new Schema(
   {
     nickname: { type: String, required: true },
     real_name: { type: String, required: true },
