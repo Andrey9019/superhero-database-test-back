@@ -19,7 +19,6 @@ const superheroSchema: Schema = new Schema<ISuperhero>(
     images: {
       type: [String],
       default: [],
-      required: true,
     },
   },
   { timestamps: true }
