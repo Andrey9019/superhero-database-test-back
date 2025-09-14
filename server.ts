@@ -50,29 +50,21 @@ const upload = multer({
   },
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+
 // middleware
 app.use(
   cors({
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST", "DELETE", "PUT"],
     allowedHeaders: ["Content-Type"],
   })
 );
-app.use(express.json()); // Парсить JSON-тіла запитів
-
-app.use("/uploads", express.static("uploads"));
+app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Логування відповідей
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const originalSend = res.send;
-  res.send = function (body: any): Response {
-    console.log(`Response: ${body}`);
-    console.log(
-      `Request: ${req.method} ${req.path} - Status: ${res.statusCode}`
-    );
-    console.log(`Response body: ${body}`);
-    return originalSend.call(this, body);
-  };
+  console.log(`Request: ${req.method} ${req.url} - Status: ${res.statusCode}`);
   next();
 });
 
@@ -112,7 +104,21 @@ app.post(
         superpowers,
         catch_phrase,
       } = req.body;
+      if (
+        !nickname ||
+        !real_name ||
+        !origin_description ||
+        !superpowers ||
+        !catch_phrase
+      ) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
       const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "At least one image is required" });
+      }
       const imagePaths = files
         ? files.map((file) => `/uploads/${file.filename}`)
         : [];
@@ -121,7 +127,10 @@ app.post(
         nickname,
         real_name,
         origin_description,
-        superpowers,
+        superpowers:
+          typeof superpowers === "string"
+            ? JSON.parse(superpowers)
+            : superpowers,
         catch_phrase,
         images: imagePaths,
       });
@@ -166,47 +175,33 @@ app.put(
         superpowers,
         catch_phrase,
       } = req.body;
+      if (
+        !nickname ||
+        !real_name ||
+        !origin_description ||
+        !superpowers ||
+        !catch_phrase
+      ) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
       const files = req.files as Express.Multer.File[];
-      const imagePaths = files
+      const existingImages =
+        typeof Image === "string" ? JSON.parse(Image) : Image || [];
+      const newImagePaths = files
         ? files.map((file) => `/uploads/${file.filename}`)
         : [];
-
-      //   const superhero = await Superhero.findByIdAndUpdate(
-      //     req.params.id,
-      //     {
-      //       nickname,
-      //       real_name,
-      //       origin_description,
-      //       superpowers,
-      //       catch_phrase,
-      //       images
-      //     },
-      //     { new: true, runValidators: true }
-      //   );
-      //   if (!superhero) {
-      //     return res.status(404).json({ error: "Superhero not found" });
-      //   }
-      //   res.status(200).json(superhero);
-      // } catch (err: any) {
-      //   res.status(400).json({ error: err.message });
-      // }
 
       const updateData: any = {
         nickname,
         real_name,
         origin_description,
-        superpowers,
+        superpowers:
+          typeof superpowers === "string"
+            ? JSON.parse(superpowers)
+            : superpowers,
         catch_phrase,
+        images: [...existingImages, ...newImagePaths],
       };
-      if (imagePaths.length > 0) {
-        const superhero = await Superhero.findById(req.params.id);
-        if (!superhero) {
-          return res.status(404).json({ error: "Superhero not found" });
-        }
-        superhero.images = superhero.images || [];
-        superhero.images.push(...imagePaths);
-        updateData.images = superhero.images;
-      }
       const superhero = await Superhero.findByIdAndUpdate(
         req.params.id,
         updateData,

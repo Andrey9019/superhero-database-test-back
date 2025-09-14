@@ -49,21 +49,15 @@ const upload = (0, multer_1.default)({
 });
 // middleware
 app.use((0, cors_1.default)({
-    origin: "*",
+    origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST", "DELETE", "PUT"],
     allowedHeaders: ["Content-Type"],
 }));
-app.use(express_1.default.json()); // Парсить JSON-тіла запитів
-app.use("/uploads", express_1.default.static("uploads"));
+app.use(express_1.default.json());
+app.use("/uploads", express_1.default.static(path_1.default.join(__dirname, "uploads")));
 // Логування відповідей
 app.use((req, res, next) => {
-    const originalSend = res.send;
-    res.send = function (body) {
-        console.log(`Response: ${body}`);
-        console.log(`Request: ${req.method} ${req.path} - Status: ${res.statusCode}`);
-        console.log(`Response body: ${body}`);
-        return originalSend.call(this, body);
-    };
+    console.log(`Request: ${req.method} ${req.url} - Status: ${res.statusCode}`);
     next();
 });
 // Підключення до MongoDB Atlas
@@ -91,7 +85,19 @@ app.get("/", (_req, res) => {
 app.post("/api/superheroes", upload.array("images", 5), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { nickname, real_name, origin_description, superpowers, catch_phrase, } = req.body;
+        if (!nickname ||
+            !real_name ||
+            !origin_description ||
+            !superpowers ||
+            !catch_phrase) {
+            return res.status(400).json({ error: "All fields are required" });
+        }
         const files = req.files;
+        if (!files || files.length === 0) {
+            return res
+                .status(400)
+                .json({ error: "At least one image is required" });
+        }
         const imagePaths = files
             ? files.map((file) => `/uploads/${file.filename}`)
             : [];
@@ -99,7 +105,9 @@ app.post("/api/superheroes", upload.array("images", 5), (req, res) => __awaiter(
             nickname,
             real_name,
             origin_description,
-            superpowers,
+            superpowers: typeof superpowers === "string"
+                ? JSON.parse(superpowers)
+                : superpowers,
             catch_phrase,
             images: imagePaths,
         });
@@ -137,45 +145,28 @@ app.get("/api/superheroes/:id", (req, res) => __awaiter(void 0, void 0, void 0, 
 app.put("/api/superheroes/:id", upload.array("images", 5), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { nickname, real_name, origin_description, superpowers, catch_phrase, } = req.body;
+        if (!nickname ||
+            !real_name ||
+            !origin_description ||
+            !superpowers ||
+            !catch_phrase) {
+            return res.status(400).json({ error: "All fields are required" });
+        }
         const files = req.files;
-        const imagePaths = files
+        const existingImages = typeof Image === "string" ? JSON.parse(Image) : Image || [];
+        const newImagePaths = files
             ? files.map((file) => `/uploads/${file.filename}`)
             : [];
-        //   const superhero = await Superhero.findByIdAndUpdate(
-        //     req.params.id,
-        //     {
-        //       nickname,
-        //       real_name,
-        //       origin_description,
-        //       superpowers,
-        //       catch_phrase,
-        //       images
-        //     },
-        //     { new: true, runValidators: true }
-        //   );
-        //   if (!superhero) {
-        //     return res.status(404).json({ error: "Superhero not found" });
-        //   }
-        //   res.status(200).json(superhero);
-        // } catch (err: any) {
-        //   res.status(400).json({ error: err.message });
-        // }
         const updateData = {
             nickname,
             real_name,
             origin_description,
-            superpowers,
+            superpowers: typeof superpowers === "string"
+                ? JSON.parse(superpowers)
+                : superpowers,
             catch_phrase,
+            images: [...existingImages, ...newImagePaths],
         };
-        if (imagePaths.length > 0) {
-            const superhero = yield Superhero_1.default.findById(req.params.id);
-            if (!superhero) {
-                return res.status(404).json({ error: "Superhero not found" });
-            }
-            superhero.images = superhero.images || [];
-            superhero.images.push(...imagePaths);
-            updateData.images = superhero.images;
-        }
         const superhero = yield Superhero_1.default.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
         if (!superhero) {
             return res.status(404).json({ error: "Superhero not found" });
