@@ -6,7 +6,7 @@ interface ISuperhero extends Document {
   origin_description: string;
   superpowers: string[];
   catch_phrase: string;
-  images?: string[];
+  images: string[];
 }
 
 const superheroSchema: Schema = new Schema<ISuperhero>(
@@ -19,7 +19,7 @@ const superheroSchema: Schema = new Schema<ISuperhero>(
     images: {
       type: [String],
       default: [],
-      // required: true
+      required: true,
     },
   },
   { timestamps: true }

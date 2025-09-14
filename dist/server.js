@@ -16,17 +16,45 @@ const express_1 = __importDefault(require("express"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cors_1 = __importDefault(require("cors"));
+const multer_1 = __importDefault(require("multer"));
+const path_1 = __importDefault(require("path"));
 const Superhero_1 = __importDefault(require("./Superhero"));
-dotenv_1.default.config(); // Завантажуємо змінні з .env
+dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || "5001", 10);
-// Middleware
+// Multer
+const storage = multer_1.default.diskStorage({
+    destination: (_req, _file, cb) => {
+        cb(null, "uploads/");
+    },
+    filename: (_req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, `${uniqueSuffix}${path_1.default.extname(file.originalname)}`);
+    },
+});
+const upload = (0, multer_1.default)({
+    storage,
+    fileFilter: (_req, file, cb) => {
+        const filetypes = /jpeg|jpg|png/;
+        const extname = filetypes.test(path_1.default.extname(file.originalname).toLowerCase());
+        const mimetype = filetypes.test(file.mimetype);
+        if (extname && mimetype) {
+            cb(null, true);
+        }
+        else {
+            cb(null, false);
+        }
+    },
+    limits: { fileSize: 5 * 1024 * 1024 },
+});
+// middleware
 app.use((0, cors_1.default)({
     origin: "*",
-    methods: ["GET", "POST", "DELETE", "UPDATE", "PUT", "PATCH"],
+    methods: ["GET", "POST", "DELETE", "PUT"],
     allowedHeaders: ["Content-Type"],
 }));
 app.use(express_1.default.json()); // Парсить JSON-тіла запитів
+app.use("/uploads", express_1.default.static("uploads"));
 // Логування відповідей
 app.use((req, res, next) => {
     const originalSend = res.send;
@@ -55,33 +83,35 @@ const connectDB = () => __awaiter(void 0, void 0, void 0, function* () {
 });
 connectDB();
 // Тестовий маршрут
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
     res.send("Superhero API is running");
 });
 // СRUD ендпоінти для супергероїв будуть тут
 // Створити
-app.post("/api/superheroes", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.post("/api/superheroes", upload.array("images", 5), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { nickname, real_name, origin_description, superpowers, catch_phrase, images, } = req.body;
+        const { nickname, real_name, origin_description, superpowers, catch_phrase, } = req.body;
+        const files = req.files;
+        const imagePaths = files
+            ? files.map((file) => `/uploads/${file.filename}`)
+            : [];
         const superhero = new Superhero_1.default({
             nickname,
             real_name,
             origin_description,
             superpowers,
             catch_phrase,
-            images,
+            images: imagePaths,
         });
         yield superhero.save();
         res.status(201).json(superhero);
-        console.log("Superhero created successfully:", superhero.nickname);
     }
     catch (error) {
         res.status(400).json({ error: error.message });
-        console.error("Error creating superhero:", error.message);
     }
 }));
 // Отримати
-app.get("/api/superheroes", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.get("/api/superheroes", (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const superheroes = yield Superhero_1.default.find();
         res.status(200).json(superheroes);
@@ -104,17 +134,49 @@ app.get("/api/superheroes/:id", (req, res) => __awaiter(void 0, void 0, void 0, 
     }
 }));
 // Оновити
-app.put("/api/superheroes/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+app.put("/api/superheroes/:id", upload.array("images", 5), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { nickname, real_name, origin_description, superpowers, catch_phrase, images, } = req.body;
-        const superhero = yield Superhero_1.default.findByIdAndUpdate(req.params.id, {
+        const { nickname, real_name, origin_description, superpowers, catch_phrase, } = req.body;
+        const files = req.files;
+        const imagePaths = files
+            ? files.map((file) => `/uploads/${file.filename}`)
+            : [];
+        //   const superhero = await Superhero.findByIdAndUpdate(
+        //     req.params.id,
+        //     {
+        //       nickname,
+        //       real_name,
+        //       origin_description,
+        //       superpowers,
+        //       catch_phrase,
+        //       images
+        //     },
+        //     { new: true, runValidators: true }
+        //   );
+        //   if (!superhero) {
+        //     return res.status(404).json({ error: "Superhero not found" });
+        //   }
+        //   res.status(200).json(superhero);
+        // } catch (err: any) {
+        //   res.status(400).json({ error: err.message });
+        // }
+        const updateData = {
             nickname,
             real_name,
             origin_description,
             superpowers,
             catch_phrase,
-            images,
-        }, { new: true, runValidators: true });
+        };
+        if (imagePaths.length > 0) {
+            const superhero = yield Superhero_1.default.findById(req.params.id);
+            if (!superhero) {
+                return res.status(404).json({ error: "Superhero not found" });
+            }
+            superhero.images = superhero.images || [];
+            superhero.images.push(...imagePaths);
+            updateData.images = superhero.images;
+        }
+        const superhero = yield Superhero_1.default.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
         if (!superhero) {
             return res.status(404).json({ error: "Superhero not found" });
         }
@@ -135,6 +197,27 @@ app.delete("/api/superheroes/:id", (req, res) => __awaiter(void 0, void 0, void 
     }
     catch (err) {
         res.status(500).json({ error: err.message });
+    }
+}));
+// Завантаження зображень
+app.post("/api/superheroes/:id/upload-image", upload.array("images", 5), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const files = req.files;
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: "No images uploaded" });
+        }
+        const superhero = yield Superhero_1.default.findById(req.params.id);
+        if (!superhero) {
+            return res.status(404).json({ error: "Superhero not found" });
+        }
+        const imagePaths = files.map((file) => `/uploads/${file.filename}`);
+        superhero.images = superhero.images || [];
+        superhero.images.push(...imagePaths);
+        yield superhero.save();
+        res.status(200).json({ message: "Images uploaded", imagePaths });
+    }
+    catch (err) {
+        res.status(400).json({ error: err.message });
     }
 }));
 // Обробник помилок

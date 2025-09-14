@@ -43,7 +43,7 @@ const superheroSchema = new mongoose_1.Schema({
     images: {
         type: [String],
         default: [],
-        // required: true
+        required: true,
     },
 }, { timestamps: true });
 const Superhero = mongoose_1.default.model("Superhero", superheroSchema);

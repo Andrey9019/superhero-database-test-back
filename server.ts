@@ -100,30 +100,38 @@ app.get("/", (_req: Request, res: Response) => {
 // СRUD ендпоінти для супергероїв будуть тут
 
 // Створити
-app.post("/api/superheroes", async (req: Request, res: Response) => {
-  try {
-    const {
-      nickname,
-      real_name,
-      origin_description,
-      superpowers,
-      catch_phrase,
-      images,
-    } = req.body;
-    const superhero = new Superhero({
-      nickname,
-      real_name,
-      origin_description,
-      superpowers,
-      catch_phrase,
-      images,
-    });
-    await superhero.save();
-    res.status(201).json(superhero);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
+app.post(
+  "/api/superheroes",
+  upload.array("images", 5),
+  async (req: Request, res: Response) => {
+    try {
+      const {
+        nickname,
+        real_name,
+        origin_description,
+        superpowers,
+        catch_phrase,
+      } = req.body;
+      const files = req.files as Express.Multer.File[];
+      const imagePaths = files
+        ? files.map((file) => `/uploads/${file.filename}`)
+        : [];
+
+      const superhero = new Superhero({
+        nickname,
+        real_name,
+        origin_description,
+        superpowers,
+        catch_phrase,
+        images: imagePaths,
+      });
+      await superhero.save();
+      res.status(201).json(superhero);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
   }
-});
+);
 // Отримати
 app.get("/api/superheroes", async (_req: Request, res: Response) => {
   try {
@@ -146,36 +154,74 @@ app.get("/api/superheroes/:id", async (req: Request, res: Response) => {
   }
 });
 // Оновити
-app.put("/api/superheroes/:id", async (req: Request, res: Response) => {
-  try {
-    const {
-      nickname,
-      real_name,
-      origin_description,
-      superpowers,
-      catch_phrase,
-      images,
-    } = req.body;
-    const superhero = await Superhero.findByIdAndUpdate(
-      req.params.id,
-      {
+app.put(
+  "/api/superheroes/:id",
+  upload.array("images", 5),
+  async (req: Request, res: Response) => {
+    try {
+      const {
         nickname,
         real_name,
         origin_description,
         superpowers,
         catch_phrase,
-        images,
-      },
-      { new: true, runValidators: true }
-    );
-    if (!superhero) {
-      return res.status(404).json({ error: "Superhero not found" });
+      } = req.body;
+      const files = req.files as Express.Multer.File[];
+      const imagePaths = files
+        ? files.map((file) => `/uploads/${file.filename}`)
+        : [];
+
+      //   const superhero = await Superhero.findByIdAndUpdate(
+      //     req.params.id,
+      //     {
+      //       nickname,
+      //       real_name,
+      //       origin_description,
+      //       superpowers,
+      //       catch_phrase,
+      //       images
+      //     },
+      //     { new: true, runValidators: true }
+      //   );
+      //   if (!superhero) {
+      //     return res.status(404).json({ error: "Superhero not found" });
+      //   }
+      //   res.status(200).json(superhero);
+      // } catch (err: any) {
+      //   res.status(400).json({ error: err.message });
+      // }
+
+      const updateData: any = {
+        nickname,
+        real_name,
+        origin_description,
+        superpowers,
+        catch_phrase,
+      };
+      if (imagePaths.length > 0) {
+        const superhero = await Superhero.findById(req.params.id);
+        if (!superhero) {
+          return res.status(404).json({ error: "Superhero not found" });
+        }
+        superhero.images = superhero.images || [];
+        superhero.images.push(...imagePaths);
+        updateData.images = superhero.images;
+      }
+      const superhero = await Superhero.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true, runValidators: true }
+      );
+      if (!superhero) {
+        return res.status(404).json({ error: "Superhero not found" });
+      }
+
+      res.status(200).json(superhero);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
     }
-    res.status(200).json(superhero);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
   }
-});
+);
 // Видалити
 app.delete("/api/superheroes/:id", async (req: Request, res: Response) => {
   try {
