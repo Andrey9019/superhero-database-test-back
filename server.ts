@@ -175,33 +175,39 @@ app.put(
         superpowers,
         catch_phrase,
       } = req.body;
-      if (
-        !nickname ||
-        !real_name ||
-        !origin_description ||
-        !superpowers ||
-        !catch_phrase
-      ) {
-        return res.status(400).json({ error: "All fields are required" });
-      }
+      // if (
+      //   !nickname ||
+      //   !real_name ||
+      //   !origin_description ||
+      //   !superpowers ||
+      //   !catch_phrase
+      // ) {
+      //   return res.status(400).json({ error: "All fields are required" });
+      // }
       const files = req.files as Express.Multer.File[];
-      const existingImages =
-        typeof Image === "string" ? JSON.parse(Image) : Image || [];
+      const existingImages = req.body.images
+        ? typeof req.body.images === "string"
+          ? JSON.parse(req.body.images)
+          : req.body.images
+        : [];
       const newImagePaths = files
         ? files.map((file) => `/uploads/${file.filename}`)
         : [];
 
-      const updateData: any = {
-        nickname,
-        real_name,
-        origin_description,
-        superpowers:
+      const updateData: any = {};
+      if (nickname) updateData.nickname = nickname;
+      if (real_name) updateData.real_name = real_name;
+      if (origin_description)
+        updateData.origin_description = origin_description;
+      if (superpowers)
+        updateData.superpowers =
           typeof superpowers === "string"
             ? JSON.parse(superpowers)
-            : superpowers,
-        catch_phrase,
-        images: [...existingImages, ...newImagePaths],
-      };
+            : superpowers;
+      if (catch_phrase) updateData.catch_phrase = catch_phrase;
+      if (existingImages.length > 0 || newImagePaths.length > 0)
+        updateData.images = [...existingImages, ...newImagePaths];
+
       const superhero = await Superhero.findByIdAndUpdate(
         req.params.id,
         updateData,
