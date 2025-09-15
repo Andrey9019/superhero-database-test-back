@@ -5,30 +5,46 @@ import dotenv from "dotenv";
 import multer from "multer";
 import cors from "cors";
 import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 dotenv.config();
 
 const app: Express = express();
 const PORT: number = parseInt(process.env.PORT || "5001", 10);
 
-// Multer
-const storage = multer.diskStorage({
-  destination: (
-    _req: Request,
-    _file: Express.Multer.File,
-    cb: (error: Error | null, destination: string) => void
-  ) => {
-    cb(null, "uploads/");
-  },
-  filename: (
-    _req: Request,
-    file: Express.Multer.File,
-    cb: (error: Error | null, filename: string) => void
-  ) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
+// Cloudinary configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Multer
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (_req, file) => ({
+    folder: "superheros",
+    allowed_formats: ["jpg", "jpeg", "png"],
+  }),
+});
+// const storage = multer.diskStorage({
+//   destination: (
+//     _req: Request,
+//     _file: Express.Multer.File,
+//     cb: (error: Error | null, destination: string) => void
+//   ) => {
+//     cb(null, "uploads/");
+//   },
+//   filename: (
+//     _req: Request,
+//     file: Express.Multer.File,
+//     cb: (error: Error | null, filename: string) => void
+//   ) => {
+//     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+//     cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
+//   },
+// });
 
 const upload = multer({
   storage,
@@ -60,7 +76,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Логування відповідей
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -119,9 +135,7 @@ app.post(
           .status(400)
           .json({ error: "At least one image is required" });
       }
-      const imagePaths = files
-        ? files.map((file) => `/uploads/${file.filename}`)
-        : [];
+      const imagePaths = files.map((file) => file.path);
 
       const superhero = new Superhero({
         nickname,
@@ -190,9 +204,7 @@ app.put(
           ? JSON.parse(req.body.images)
           : req.body.images
         : [];
-      const newImagePaths = files
-        ? files.map((file) => `/uploads/${file.filename}`)
-        : [];
+      const newImagePaths = files ? files.map((file: any) => file.path) : [];
 
       const updateData: any = {};
       if (nickname) updateData.nickname = nickname;
@@ -250,7 +262,8 @@ app.post(
       if (!superhero) {
         return res.status(404).json({ error: "Superhero not found" });
       }
-      const imagePaths = files.map((file) => `/uploads/${file.filename}`);
+      const imagePaths = files.map((file: any) => file.path);
+
       superhero.images = superhero.images || [];
       superhero.images.push(...imagePaths);
       await superhero.save();
