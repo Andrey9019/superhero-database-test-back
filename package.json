@@ -7,9 +7,6 @@
     "build": "tsc",
     "dev": "ts-node server.ts"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "@types/mongoose": "^5.11.96",
     "cors": "^2.8.5",
@@ -25,6 +22,11 @@
     "@types/node": "^16.11.6",
     "nodemon": "^2.0.14",
     "ts-node": "^10.9.2",
+    "@types/mongoose": "^5.11.0",
     "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": "22.x",
+    "npm": "10.x"
   }
 }
